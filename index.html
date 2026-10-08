@@ -120,6 +120,10 @@
   .ctl button { border: 1px solid rgba(255,255,255,.35); background: rgba(0,0,0,.5); color: #fff; border-radius: 999px; padding: 7px 13px;
     font: 700 13px/1 "Microsoft JhengHei", "PingFang TC", sans-serif; cursor: pointer; backdrop-filter: blur(4px); }
   .ctl button:hover { background: rgba(255,255,255,.16); }
+  /* 音效鈕：還沒開時金色呼吸提示（瀏覽器規定要點一下才能出聲） */
+  .ctl button.snd { border-color: rgba(255,201,60,.8); color: #ffd76a; animation: sndHint 1.6s ease-in-out infinite; }
+  .ctl button.snd.on { animation: none; color: #fff; border-color: rgba(255,255,255,.35); }
+  @keyframes sndHint { 50% { box-shadow: 0 0 0 6px rgba(255,201,60,.25); } }
   .lb { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.9); display: none; align-items: center; justify-content: center; padding: 16px; }
   .lb.on { display: flex; }
   .lb img { max-width: 100%; max-height: 100%; border-radius: 10px; }
@@ -148,7 +152,7 @@
   <div class="call" id="call"><b></b></div>
   <div class="count" id="count"></div>
 </div>
-<div class="ctl"><button type="button" id="replay">↻ 重播</button><button type="button" id="posterBtn">看海報</button></div>
+<div class="ctl"><button type="button" id="sndBtn" class="snd" title="開／關音效（開啟後從頭重播）">🔇 音效</button><button type="button" id="replay">↻ 重播</button><button type="button" id="posterBtn">看海報</button></div>
 <div class="lb" id="lb"><img src="poster.webp" alt="戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽 海報"></div>
 
 <script>
@@ -210,9 +214,86 @@
     requestAnimationFrame(draw);
   })();
 
+  /* ── 音效（2026-10-09 使用者：「可以加上音效嗎？」）──
+     全部用 Web Audio 即時合成（不用音檔、正式機也能用）。瀏覽器規定要使用者點一下才能出聲 → 右上「🔇 音效」，點了開聲音並從頭重播。
+     倒數嗶聲／GO SHOOT! 拉發射器棘輪＋破風／標題重擊／陀螺高速旋轉嗡嗡聲／四大天王落地重擊／金屬撞擊＋觀眾歡呼／爆炸＋火花劈啪／觀眾席環境音。 */
+  var SND = (function () {
+    var ac = null, master = null, nbuf = null, on = false, hum = null, amb = null;
+    function init() {
+      if (ac) { return; }
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) { return; }
+      ac = new AC();
+      var comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+      master = ac.createGain(); master.gain.value = 0; master.connect(comp); comp.connect(ac.destination);
+      nbuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+      var d = nbuf.getChannelData(0); for (var i = 0; i < d.length; i++) { d[i] = Math.random() * 2 - 1; }
+    }
+    function now() { return ac.currentTime; }
+    function env(g, t, a, peak, dec) { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec); }
+    function noise(t, dur, filterType, f0, f1, peak, q) {
+      var src = ac.createBufferSource(); src.buffer = nbuf;
+      var f = ac.createBiquadFilter(); f.type = filterType; f.Q.value = q || 1; f.frequency.setValueAtTime(f0, t); if (f1) { f.frequency.exponentialRampToValueAtTime(f1, t + dur); }
+      var g = ac.createGain(); env(g, t, Math.min(.02, dur / 4), peak, dur);
+      src.connect(f); f.connect(g); g.connect(master); src.start(t, Math.random()); src.stop(t + dur + .1);
+    }
+    function tone(t, type, f0, f1, dur, peak) {
+      var o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) { o.frequency.exponentialRampToValueAtTime(f1, t + dur); }
+      var g = ac.createGain(); env(g, t, .005, peak, dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .1);
+    }
+    var fx = {
+      beep: function (hi) { var t = now(); tone(t, 'square', hi ? 1320 : 880, 0, .16, .18); tone(t, 'sine', hi ? 660 : 440, 0, .2, .12); },
+      launch: function () {   // 拉發射器：越拉越快的棘輪「喀啦喀啦」＋破風
+        var t = now(), dt = .034;
+        for (var i = 0; i < 24; i++) { noise(t, .018, 'bandpass', 1400 + i * 110, 0, .35, 6); t += dt; dt *= .94; }
+        noise(t, .6, 'bandpass', 600, 4000, .5, .8); tone(t, 'sawtooth', 220, 880, .4, .06);
+      },
+      slam: function () { var t = now(); tone(t, 'sine', 110, 38, .7, .9); noise(t, .35, 'lowpass', 1800, 200, .5); },
+      whoosh: function () { noise(now(), .45, 'bandpass', 500, 3200, .35, .9); },
+      land: function () { var t = now(); tone(t, 'sine', 90, 45, .4, .6); noise(t, .2, 'lowpass', 1200, 150, .35); },
+      metal: function (big) {   // 金屬撞擊：不協和的金屬泛音＋高頻雜訊
+        var t = now(), v = big ? 1 : .7;
+        [1240, 1873, 2632, 3917, 5210].forEach(function (f, i) { tone(t, 'sine', f * (1 + Math.random() * .02), 0, .5 - i * .06, .14 * v); });
+        noise(t, .09, 'highpass', 3000, 0, .5 * v); tone(t, 'sine', 140, 60, .25, .45 * v);
+      },
+      boom: function () {   // 爆炸：低頻爆破＋往下掃的雜訊＋火花劈啪
+        var t = now(); tone(t, 'sine', 95, 28, 1.6, 1); noise(t, 1.3, 'lowpass', 1600, 90, .8);
+        for (var i = 0; i < 46; i++) { noise(t + .05 + Math.random() * 1.1, .012, 'highpass', 2500 + Math.random() * 4000, 0, .12 + Math.random() * .2); }
+      },
+      cheer: function (big) {   // 觀眾歡呼湧上來
+        if (!amb) { return; } var g = amb.g.gain, t = now();
+        g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(big ? .22 : .14, t + .25); g.linearRampToValueAtTime(.035, t + (big ? 3 : 2));
+      }
+    };
+    function startLoops() {
+      if (!hum) {   // 陀螺高速旋轉：兩組略微走音的鋸齒波＋低通＋5Hz 抖動
+        var g = ac.createGain(); g.gain.value = 0; var lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+        var o1 = ac.createOscillator(), o2 = ac.createOscillator(); o1.type = o2.type = 'sawtooth'; o1.frequency.value = 118; o2.frequency.value = 123;
+        var lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 6; lg.gain.value = .012; lfo.connect(lg); lg.connect(g.gain);
+        o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master); o1.start(); o2.start(); lfo.start();
+        hum = { g: g };
+      }
+      if (!amb) {   // 觀眾席環境音：帶通雜訊，平常很小聲
+        var src = ac.createBufferSource(); src.buffer = nbuf; src.loop = true;
+        var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = .45;
+        var ga = ac.createGain(); ga.gain.value = .035; src.connect(bp); bp.connect(ga); ga.connect(master); src.start();
+        amb = { g: ga };
+      }
+    }
+    return {
+      on: function () { return on; },
+      enable: function () { init(); if (!ac) { return false; } ac.resume(); startLoops(); master.gain.setTargetAtTime(.8, now(), .05); on = true; return true; },
+      disable: function () { if (!ac) { return; } master.gain.setTargetAtTime(0, now(), .05); on = false; },
+      play: function (name, arg) { if (!on || !ac || !fx[name]) { return; } try { fx[name](arg); } catch (e) {} },
+      hum: function (v) { if (!on || !hum) { return; } hum.g.gain.setTargetAtTime(v, now(), .25); }
+    };
+  })();
+
   /* ── 喊招／閃光／震動 ── */
   var callEl = document.getElementById('call'), flashEl = document.getElementById('flash');
   function call(txt, small) {
+    if (/^[0-9]$/.test(txt)) { SND.play('beep', false); }
+    else if (txt === 'GO SHOOT!' && !running) { SND.play('beep', true); SND.play('launch'); }
+    else { SND.play('whoosh'); }
     callEl.querySelector('b').textContent = txt; callEl.className = 'call' + (small ? ' small' : '');
     void callEl.offsetWidth; callEl.classList.add('on');
   }
@@ -222,12 +303,22 @@
   /* ── 對戰：發射後兩顆在原位旋轉，每 2.8 秒撞擊一次（火花＋白光＋震動＋原地脈衝） ── */
   var running = false, start = 0, PERIOD = 2800, lastHit = -1, hits = 0;
   var CALLS = ['BURST!', 'X-TREME!', 'CLASH!', 'GO SHOOT!'];
+  var VEV = [[2.65, 'clash'], [6.28, 'boom'], [9.15, 'clash']], lastVT = 0;   // battle.mp4 裡撞擊／爆炸的秒數（逐格分析亮度找出來的）
   function loop(now) {
     if (!running) { return; }
+    if (hasVideo && !vid.paused) {
+      var vt = vid.currentTime;
+      VEV.forEach(function (ev) {
+        if ((lastVT < ev[0] && vt >= ev[0]) || (vt < lastVT && vt >= ev[0] && ev[0] < .3)) {
+          if (ev[1] === 'boom') { SND.play('boom'); SND.play('cheer', true); } else { SND.play('metal', true); SND.play('cheer', false); }
+        }
+      });
+      lastVT = vt;
+    }
     var t = (now - start) / PERIOD, cyc = Math.floor(t), f = t - cyc;
     if (f >= .35 && lastHit !== cyc && !hasVideo) {
       lastHit = cyc; hits++;
-      burst(reduce ? 30 : 150, 1); flash(false); shake();
+      burst(reduce ? 30 : 150, 1); flash(false); shake(); SND.play('metal'); SND.play('cheer', false);
       [tB, tR].forEach(function (el) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); });
       if (hits % 3 === 0) { call(CALLS[(hits / 3 - 1) % CALLS.length], true); }
     }
@@ -248,20 +339,21 @@
   var timers = [];
   function play() {
     timers.forEach(clearTimeout); timers = []; running = false;
-    stage.classList.remove('go'); vid.pause(); kings.forEach(function (k) { k.classList.remove('in'); }); void stage.offsetWidth;
+    stage.classList.remove('go'); vid.pause(); lastVT = 0; SND.hum(0); kings.forEach(function (k) { k.classList.remove('in'); }); void stage.offsetWidth;
     document.getElementById('bgblur').classList.remove('on');
     var seq = [['3', 0], ['2', 450], ['1', 900], ['GO SHOOT!', 1350]];
     seq.forEach(function (s) { timers.push(setTimeout(function () { call(s[0], s[0].length > 2); if (s[0] === 'GO SHOOT!') { flash(true); } }, s[1])); });
     timers.push(setTimeout(function () { stage.classList.add('go'); }, 0));
-    timers.push(setTimeout(function () { document.getElementById('bgblur').classList.add('on'); }, 1900));
+    timers.push(setTimeout(function () { document.getElementById('bgblur').classList.add('on'); SND.play('slam'); SND.hum(.07); }, 1900));   // 標題重擊＋陀螺開始轉
     timers.push(setTimeout(function () { if (hasVideo) { try { vid.currentTime = 0; } catch (e) {} vid.play().catch(function () {}); } }, 1900));   // 陀螺影片跟著海報一起出現、從頭播
-    timers.push(setTimeout(function () { if (!hasVideo) { burst(reduce ? 30 : 220, 1.3); flash(false); shake(); } }, 2450));   // 落場第一擊（沒影片時）
+    timers.push(setTimeout(function () { if (!hasVideo) { burst(reduce ? 30 : 220, 1.3); flash(false); shake(); SND.play('metal', true); SND.play('cheer', false); } }, 2450));   // 落場第一擊（沒影片時）
     // 四大天王依序登場（落定在 0.27 秒時：白光＋腳下火花＋震動）
     timers.push(setTimeout(function () { call('四大天王', true); }, 2750));
     KINGS.forEach(function (k, i) {
       var at = 3500 + i * 520;
       timers.push(setTimeout(function () { kings[i].classList.remove('in'); void kings[i].offsetWidth; kings[i].classList.add('in'); }, at));
-      timers.push(setTimeout(function () { burst(reduce ? 15 : 70, .8, k[0] + k[2] / 2, k[1] + k[3] * .97); shake(); }, at + 270));
+      timers.push(setTimeout(function () { SND.play('whoosh'); }, at));
+      timers.push(setTimeout(function () { burst(reduce ? 15 : 70, .8, k[0] + k[2] / 2, k[1] + k[3] * .97); shake(); SND.play('land'); }, at + 270));
     });
     timers.push(setTimeout(function () {
       // 四個人都登場後：有 AI 影片就淡入從頭播（影片裡的人被上面的四大天王圖層蓋住），沒有就照原本的撞擊循環
@@ -269,6 +361,13 @@
     }, 3500 + 4 * 520 + 400));
   }
   document.getElementById('replay').addEventListener('click', play);
+  var sndBtn = document.getElementById('sndBtn');
+  sndBtn.addEventListener('click', function () {
+    if (SND.on()) { SND.disable(); sndBtn.textContent = '🔇 音效'; sndBtn.classList.remove('on'); return; }
+    if (!SND.enable()) { sndBtn.textContent = '此瀏覽器不支援音效'; return; }
+    sndBtn.textContent = '🔊 音效'; sndBtn.classList.add('on');
+    play();   // 開聲音就從頭重播，聽完整段
+  });
   play();
 
   /* ── 開賽倒數 ── */
