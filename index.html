@@ -73,11 +73,19 @@
   @keyframes idle { 0%, 100% { opacity: 1; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-.8%); } }
 
   canvas#fx { inset: 0; width: 100%; height: 100%; pointer-events: none; }
-  /* 2026-10-08 使用者選「用 AI 影片工具生成陀螺動畫」：同資料夾有 battle.mp4 就自動播（取代程式轉的陀螺）；
-     標題、四大天王、資訊條（五樓會議室）、倒數照樣疊在影片上 → AI 把字或臉畫歪也蓋得住。沒有影片就維持原本做法。 */
-  .vid { object-fit: cover; opacity: 0; transition: opacity .4s; }
-  .stage.has-video .vid { opacity: 1; }
+  /* 2026-10-09 使用者用 Gemini 生成陀螺對戰影片（橫式 1280×720，含官方 logo／日文字幕／路人）→ 選「只裁中間兩顆陀螺」：
+     已裁成 battle.mp4（920×280＝原片 x180–1100、y350–630，只剩碗型場＋兩顆陀螺＋爆炸，logo／字幕／路人都不在檔案裡）。
+     放在海報陀螺的位置（海報座標 y480–760、左右各超出 76），四邊淡出融進背景；底下海報原本靜止的陀螺壓暗（dimtops），
+     四大天王仍在影片前面。影片模式下不再另外疊程式火花（影片自己有撞擊爆炸）。載不到影片就退回程式轉的陀螺。 */
+  .vband { left: calc(-76 / 768 * 100%); width: calc(920 / 768 * 100%); top: calc(480 / 1376 * 100%); height: calc(280 / 1376 * 100%); opacity: 0;
+    -webkit-mask: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent), linear-gradient(to right, transparent 4%, #000 14%, #000 86%, transparent 96%);
+    -webkit-mask-composite: source-in; mask: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent), linear-gradient(to right, transparent 4%, #000 14%, #000 86%, transparent 96%);
+    mask-composite: intersect; }
+  .vband video { width: 100%; height: 100%; object-fit: fill; display: block; }
+  .dimtops { left: 0; width: 100%; top: calc(430 / 1376 * 100%); height: calc(400 / 1376 * 100%); opacity: 0;
+    background: radial-gradient(ellipse 70% 58% at 50% 50%, rgba(4,6,14,.94) 55%, rgba(4,6,14,.6) 75%, transparent 100%); }
   .stage.has-video .top { display: none; }
+  .go.has-video .vband, .go.has-video .dimtops { animation: fadeIn .5s 1.95s forwards; }
   .bar { left: 0; bottom: 0; width: 100%; height: calc(100% * 208 / 1376); opacity: 0; }
   .go .bar { animation: fadeIn .4s 1.95s forwards; }
   .flash { inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: screen;
@@ -125,7 +133,8 @@
 <div class="bgblur" id="bgblur"></div>
 <div class="stage" id="stage" role="img" aria-label="戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽，比賽地點五樓會議室，比賽時間 10/13 17:50">
   <img class="base layer-full" src="base.webp" alt="">
-  <video class="vid layer-full" id="vid" muted loop playsinline preload="auto"></video>
+  <div class="dimtops"></div>
+  <div class="vband"><video id="vid" muted autoplay loop playsinline preload="auto"></video></div>
   <div class="top blue" id="topB"><div class="pulse"><div class="squash"><img src="top_blue.png" alt=""></div></div></div>
   <div class="top red" id="topR"><div class="pulse"><div class="squash"><img src="top_red.png" alt=""></div></div></div>
   <canvas id="fx"></canvas>
@@ -227,21 +236,26 @@
 
   /* ── AI 影片（battle.mp4）：載得到才切換；影片模式下陀螺撞擊的火花／閃光交給影片本身，不再另外疊 ── */
   var vid = document.getElementById('vid'), hasVideo = false;
-  vid.addEventListener('loadeddata', function () { hasVideo = true; });
+  vid.addEventListener('loadeddata', function () { hasVideo = true; stage.classList.add('has-video'); if (stage.classList.contains('go')) { vid.play().catch(function () {}); } });   // 影片比開場晚載好也會接著播
   vid.addEventListener('error', function () { hasVideo = false; stage.classList.remove('has-video'); });
   vid.src = 'battle.mp4';
+  // 保險：瀏覽器有時會自己把背景影片停掉（省電、分頁切換）→ 每秒看一次，該播卻停住就接著播
+  setInterval(function () {
+    if (hasVideo && stage.classList.contains('go') && vid.paused && document.visibilityState === 'visible') { vid.play().catch(function () {}); }
+  }, 1000);
 
   /* ── 開場：3・2・1・GO SHOOT! → 海報各圖層進場 → 開打 ── */
   var timers = [];
   function play() {
     timers.forEach(clearTimeout); timers = []; running = false;
-    stage.classList.remove('go', 'has-video'); vid.pause(); kings.forEach(function (k) { k.classList.remove('in'); }); void stage.offsetWidth;
+    stage.classList.remove('go'); vid.pause(); kings.forEach(function (k) { k.classList.remove('in'); }); void stage.offsetWidth;
     document.getElementById('bgblur').classList.remove('on');
     var seq = [['3', 0], ['2', 450], ['1', 900], ['GO SHOOT!', 1350]];
     seq.forEach(function (s) { timers.push(setTimeout(function () { call(s[0], s[0].length > 2); if (s[0] === 'GO SHOOT!') { flash(true); } }, s[1])); });
     timers.push(setTimeout(function () { stage.classList.add('go'); }, 0));
     timers.push(setTimeout(function () { document.getElementById('bgblur').classList.add('on'); }, 1900));
-    timers.push(setTimeout(function () { burst(reduce ? 30 : 220, 1.3); flash(false); shake(); }, 2450));   // 落場第一擊
+    timers.push(setTimeout(function () { if (hasVideo) { try { vid.currentTime = 0; } catch (e) {} vid.play().catch(function () {}); } }, 1900));   // 陀螺影片跟著海報一起出現、從頭播
+    timers.push(setTimeout(function () { if (!hasVideo) { burst(reduce ? 30 : 220, 1.3); flash(false); shake(); } }, 2450));   // 落場第一擊（沒影片時）
     // 四大天王依序登場（落定在 0.27 秒時：白光＋腳下火花＋震動）
     timers.push(setTimeout(function () { call('四大天王', true); }, 2750));
     KINGS.forEach(function (k, i) {
@@ -251,7 +265,6 @@
     });
     timers.push(setTimeout(function () {
       // 四個人都登場後：有 AI 影片就淡入從頭播（影片裡的人被上面的四大天王圖層蓋住），沒有就照原本的撞擊循環
-      if (hasVideo) { try { vid.currentTime = 0; } catch (e) {} vid.play().catch(function () {}); stage.classList.add('has-video'); flash(true); }
       running = true; start = performance.now(); lastHit = -1; hits = 0; requestAnimationFrame(loop);
     }, 3500 + 4 * 520 + 400));
   }
