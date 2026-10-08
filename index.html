@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽</title>
+<!--
+  2026-10-08 使用者：「獨立小工作，幫我生成動畫網頁，參考這張海報」
+  第二版（使用者看完第一版：「文字美感太差」「戰鬥陀螺也不逼真」「四大天王也消失了」「陀螺戰鬥去參考網路上相關資料」「地點改成五樓會議室」）：
+  → 改成「會動的海報」：字、陀螺、四個人全部直接用海報本身的素材（從海報切成圖層），動畫照真實對戰流程：
+    3・2・1 GO SHOOT! 發射 → 陀螺落場高速旋轉、繞著晃動（歲差）→ 衝撞噴火花＋白光＋畫面震動 → 不時喊 BURST!／X-TREME!
+    （Beyblade X 規則：Spin Finish 1 分、Over／Burst Finish 2 分、X-treme Finish 3 分）
+  圖層：base.webp＝底圖（四個人處是黑色剪影，人物依序登場揭曉）；poster.webp＝看海報用（地點已改成五樓會議室）；bar.webp＝資訊條；
+        battle.mp4（選用）＝AI 影片工具生成的陀螺對戰片，放進來就自動取代程式轉的陀螺；top_blue／top_red＝陀螺（斜放的橢圓先拉成正圓，被人頭擋到的地方用 180° 對面補，
+        顯示時再壓回原本斜角 → 在原平面上轉）；people.png＝四個人（macOS Vision 主體去背）；title.webp＋title_mask.png＝標題與掃光遮罩。
+  獨立靜態頁：不用登入、沒有外部資源。
+-->
+<style>
+  :root { --gold1:#fff3b0; --gold2:#ffc93c; --gold3:#c47a00; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #03040a; overflow: hidden; }
+  body { font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; color: #fff; }
+
+  /* 舞台＝海報比例 768:1376，塞滿視窗；寬螢幕兩側用海報模糊放大當背景 */
+  .bgblur { position: fixed; inset: -8%; background: url(poster.webp) center / cover; filter: blur(28px) brightness(.45) saturate(1.2); opacity: 0; transition: opacity 1s; }
+  .bgblur.on { opacity: 1; }
+  .stage { position: absolute; left: 50%; top: 50%; --w: min(100vw, calc(100vh * 768 / 1376)); width: var(--w); height: calc(var(--w) * 1376 / 768);
+    transform: translate(-50%, -50%); overflow: hidden; background: #03040a; box-shadow: 0 0 80px rgba(0,0,0,.8); }
+  .stage > * { position: absolute; }
+  .layer-full { inset: 0; width: 100%; height: 100%; }
+  img { display: block; -webkit-user-drag: none; user-select: none; }
+
+  .base { opacity: 0; }
+  .go .base { animation: fadeIn .35s 1.95s ease-out forwards; }
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  /* 標題：重擊進場（放大＋模糊 → 落定），之後每 4.5 秒一道掃光只掃過字 */
+  .title { left: 0; top: 0; width: 100%; height: calc(100% * 450 / 1376); opacity: 0; transform-origin: 50% 45%; }
+  .title img { width: 100%; height: 100%; }
+  .go .title { animation: slam .6s 1.9s cubic-bezier(.2,1.5,.35,1) forwards; }
+  @keyframes slam { 0% { opacity: 0; transform: scale(1.35); filter: blur(8px) brightness(2); } 55% { opacity: 1; transform: scale(.97); filter: blur(0) brightness(1.4); }
+    100% { opacity: 1; transform: scale(1); filter: none; } }
+  .glint { inset: 0; -webkit-mask: url(title_mask.png) center / 100% 100% no-repeat; mask: url(title_mask.png) center / 100% 100% no-repeat; pointer-events: none; }
+  .glint::before { content: ""; position: absolute; top: -10%; bottom: -10%; width: 26%; left: -40%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.95) 45%, rgba(255,240,190,.9) 55%, transparent);
+    transform: skewX(-18deg); animation: glint 4.5s 3s infinite; }
+  @keyframes glint { 0% { left: -40%; } 28%, 100% { left: 125%; } }
+
+  /* 陀螺：外層＝位置，中層＝壓回斜角（scaleY），內層＝原地旋轉。
+     2026-10-08 使用者：「陀螺畫面完全不行」——旋轉層一位移，底下海報原本靜止的陀螺就露出來（兩顆疊在一起）、殘影＋光暈又把畫面弄糊。
+     → 陀螺不再位移、拿掉殘影與光暈；只在原地轉（遮罩貼緊陀螺、蓋住底下那顆），撞擊時原地脈衝放大。 */
+  .top { will-change: transform; opacity: 0; }
+  .go .top { animation: drop .7s 2.0s cubic-bezier(.2,1.3,.4,1) forwards; }
+  @keyframes drop { 0% { opacity: 0; transform: scale(.25) rotate(-90deg); } 100% { opacity: 1; transform: none; } }
+  .squash { position: relative; width: 100%; aspect-ratio: 1; }
+  .squash img { position: absolute; inset: 0; width: 100%; height: 100%; animation: spin 1.15s linear infinite; }
+  .top.red .squash img { animation-direction: reverse; animation-duration: 1.05s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .top .pulse { width: 100%; height: 100%; }
+  .top.hit .pulse { animation: pulse .35s ease-out; }
+  @keyframes pulse { 0% { transform: scale(1); } 30% { transform: scale(1.045); filter: brightness(1.35); } 100% { transform: scale(1); } }
+
+  /* 四大天王（2026-10-08 使用者：「四天王要有進場順序跟動畫」）：底圖先是四個黑色剪影，
+     依序 1→2→3→4 登場（左兩位從左／下、右兩位從下／右衝進來），落定瞬間全身發白光再還原＋腳下噴火花＋畫面一震，之後各自待機晃動 */
+  .king { opacity: 0; transform-origin: 50% 100%; }
+  .king img { width: 100%; height: 100%; }
+  .king.in { animation: kin .6s cubic-bezier(.2,1.2,.35,1) forwards, idle 2.6s .6s ease-in-out infinite; }
+  .k1.in { --fx: -60%; --fy: 0%; } .k2.in { --fx: 0%; --fy: 45%; } .k3.in { --fx: 0%; --fy: 45%; } .k4.in { --fx: 60%; --fy: 0%; }
+  .k2.in { animation-duration: .6s, 3.1s; } .k3.in { animation-duration: .6s, 2.3s; } .k4.in { animation-duration: .6s, 2.8s; }
+  @keyframes kin { 0% { opacity: 0; transform: translate(var(--fx), var(--fy)) scale(1.08); filter: brightness(0); }
+    45% { opacity: 1; transform: translate(0, 0) scale(1.04); filter: brightness(6) saturate(0); }
+    100% { opacity: 1; transform: none; filter: none; } }
+  @keyframes idle { 0%, 100% { opacity: 1; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-.8%); } }
+
+  canvas#fx { inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  /* 2026-10-08 使用者選「用 AI 影片工具生成陀螺動畫」：同資料夾有 battle.mp4 就自動播（取代程式轉的陀螺）；
+     標題、四大天王、資訊條（五樓會議室）、倒數照樣疊在影片上 → AI 把字或臉畫歪也蓋得住。沒有影片就維持原本做法。 */
+  .vid { object-fit: cover; opacity: 0; transition: opacity .4s; }
+  .stage.has-video .vid { opacity: 1; }
+  .stage.has-video .top { display: none; }
+  .bar { left: 0; bottom: 0; width: 100%; height: calc(100% * 208 / 1376); opacity: 0; }
+  .go .bar { animation: fadeIn .4s 1.95s forwards; }
+  .flash { inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+    background: radial-gradient(circle at 51% 45%, rgba(255,252,230,.95), rgba(255,200,120,.35) 18%, transparent 42%); }
+  .flash.on { animation: flash .45s ease-out; }
+  .flash.white { background: #fff; }
+  @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .stage.shake { animation: shake .32s; }
+  @keyframes shake { 20% { transform: translate(calc(-50% + 5px), calc(-50% - 4px)); } 45% { transform: translate(calc(-50% - 5px), calc(-50% + 3px)); }
+    70% { transform: translate(calc(-50% + 3px), calc(-50% + 2px)); } }
+
+  /* 喊招（發射口令／Burst／X-treme）：粗斜體＋金色漸層＋黑邊＋光暈 */
+  .call { left: 0; right: 0; top: 41%; text-align: center; pointer-events: none; opacity: 0;
+    font-family: Impact, "Arial Black", "Helvetica Neue", sans-serif; font-style: italic; letter-spacing: .02em;
+    font-size: calc(var(--w) * .2); line-height: 1; }
+  .call b { display: inline-block; background: linear-gradient(180deg, #fff 0%, var(--gold1) 30%, var(--gold2) 60%, var(--gold3) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: calc(var(--w) * .004) #2a1500;
+    filter: drop-shadow(0 4px 0 #000) drop-shadow(0 0 22px rgba(255,170,60,.85)); padding: 0 .08em; }
+  .call.small { font-size: calc(var(--w) * .13); top: 44%; }
+  .call.on { animation: call .9s cubic-bezier(.2,1.4,.4,1) forwards; }
+  @keyframes call { 0% { opacity: 0; transform: scale(2.4) skewX(-10deg); } 22% { opacity: 1; transform: scale(1) skewX(-10deg); }
+    75% { opacity: 1; transform: scale(1.04) skewX(-10deg); } 100% { opacity: 0; transform: scale(.9) skewX(-10deg); } }
+
+  /* 開賽倒數：放在資訊條下方的暗邊 */
+  .count { left: 0; right: 0; bottom: 0; height: calc(100% * 44 / 1376); display: flex; align-items: center; justify-content: center; gap: .5em;
+    font-size: calc(var(--w) * .033); font-weight: 900; letter-spacing: .06em; opacity: 0; }
+  .go .count { animation: fadeIn .5s 2.8s forwards; }
+  .count .k { color: var(--gold2); }
+  .count .v { font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,200,80,.5); }
+
+  .ctl { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 10; display: flex; gap: 6px; }
+  .ctl button { border: 1px solid rgba(255,255,255,.35); background: rgba(0,0,0,.5); color: #fff; border-radius: 999px; padding: 7px 13px;
+    font: 700 13px/1 "Microsoft JhengHei", "PingFang TC", sans-serif; cursor: pointer; backdrop-filter: blur(4px); }
+  .ctl button:hover { background: rgba(255,255,255,.16); }
+  .lb { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.9); display: none; align-items: center; justify-content: center; padding: 16px; }
+  .lb.on { display: flex; }
+  .lb img { max-width: 100%; max-height: 100%; border-radius: 10px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .squash img { animation-duration: 3s !important; } .glint::before { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="bgblur" id="bgblur"></div>
+<div class="stage" id="stage" role="img" aria-label="戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽，比賽地點五樓會議室，比賽時間 10/13 17:50">
+  <img class="base layer-full" src="base.webp" alt="">
+  <video class="vid layer-full" id="vid" muted loop playsinline preload="auto"></video>
+  <div class="top blue" id="topB"><div class="pulse"><div class="squash"><img src="top_blue.png" alt=""></div></div></div>
+  <div class="top red" id="topR"><div class="pulse"><div class="squash"><img src="top_red.png" alt=""></div></div></div>
+  <canvas id="fx"></canvas>
+  <div class="king k1" id="k1"><img src="p1.png" alt=""></div>
+  <div class="king k2" id="k2"><img src="p2.png" alt=""></div>
+  <div class="king k3" id="k3"><img src="p3.png" alt=""></div>
+  <div class="king k4" id="k4"><img src="p4.png" alt=""></div>
+  <div class="title"><img src="title.webp" alt=""><div class="glint"></div></div>
+  <img class="bar" id="bar" src="bar.webp" alt="">
+  <div class="flash" id="flash"></div>
+  <div class="call" id="call"><b></b></div>
+  <div class="count" id="count"></div>
+</div>
+<div class="ctl"><button type="button" id="replay">↻ 重播</button><button type="button" id="posterBtn">看海報</button></div>
+<div class="lb" id="lb"><img src="poster.webp" alt="戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽 海報"></div>
+
+<script>
+(function () {
+  'use strict';
+  var PW = 768, PH = 1376;                                   // 海報座標
+  var TOPS = { B: { cx: 207, cy: 618, rx: 205, ry: 170 }, R: { cx: 592, cy: 626, rx: 182, ry: 168 } };
+  var KINGS = [[21, 714, 232, 468], [206, 797, 230, 389], [415, 773, 202, 413], [604, 711, 141, 483]];   // 四個人在海報上的位置 x,y,w,h
+  var HIT = { x: 396, y: 612 };                               // 兩顆陀螺接觸點（海報上火花的位置）
+  var EVENT_AT = new Date(2026, 9, 13, 17, 50, 0);
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var stage = document.getElementById('stage');
+  function pct(v, of) { return (v / of * 100) + '%'; }
+
+  // 版面：照海報座標放（陀螺：寬＝2rx 的正方形，置中後再 scaleY(ry/rx) 壓回斜角）
+  function placeTop(el, t) {
+    el.style.left = pct(t.cx - t.rx, PW); el.style.top = pct(t.cy - t.rx, PH);
+    el.style.width = pct(t.rx * 2, PW);
+    el.querySelector('.squash').style.transform = 'scaleY(' + (t.ry / t.rx) + ')';
+  }
+  var tB = document.getElementById('topB'), tR = document.getElementById('topR');
+  placeTop(tB, TOPS.B); placeTop(tR, TOPS.R);
+  var kings = KINGS.map(function (k, i) {
+    var el = document.getElementById('k' + (i + 1));
+    el.style.left = pct(k[0], PW); el.style.top = pct(k[1], PH); el.style.width = pct(k[2], PW); el.style.height = pct(k[3], PH);
+    return el;
+  });
+
+  /* ── 火花（canvas）：撞擊時往外噴、帶重力、拖尾；平常飄火星 ── */
+  var cv = document.getElementById('fx'), ctx = cv.getContext('2d'), P = [], DPR = Math.min(2, window.devicePixelRatio || 1);
+  function size() { cv.width = stage.clientWidth * DPR; cv.height = stage.clientHeight * DPR; }
+  window.addEventListener('resize', size); size();
+  function burst(n, power, px, py) {
+    var x = (px == null ? HIT.x : px) / PW * cv.width, y = (py == null ? HIT.y : py) / PH * cv.height;
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * Math.PI * 2, sp = (2 + Math.random() * 11 * power) * DPR;
+      P.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2 * DPR, life: 1, decay: .011 + Math.random() * .03,
+               hue: Math.random() < .65 ? 38 + Math.random() * 18 : (Math.random() < .5 ? 205 : 8), w: (1 + Math.random() * 2.4) * DPR });
+    }
+  }
+  var embers = [];
+  for (var e = 0; e < 36; e++) { embers.push({ x: Math.random(), y: Math.random(), s: .2 + Math.random() * .8, t: Math.random() * 6 }); }
+  (function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.globalCompositeOperation = 'lighter';
+    embers.forEach(function (m) {
+      m.y -= .0006 * m.s; m.t += .02; if (m.y < -0.05) { m.y = 1.02; m.x = Math.random(); }
+      ctx.fillStyle = 'rgba(255,' + (150 + (m.s * 80 | 0)) + ',80,' + (.18 + m.s * .3) + ')';
+      ctx.beginPath(); ctx.arc((m.x + Math.sin(m.t) * .01) * cv.width, m.y * cv.height, m.s * 2 * DPR, 0, 6.283); ctx.fill();
+    });
+    for (var i = P.length - 1; i >= 0; i--) {
+      var p = P[i];
+      p.x += p.vx; p.y += p.vy; p.vy += .2 * DPR; p.vx *= .985; p.life -= p.decay;
+      if (p.life <= 0) { P.splice(i, 1); continue; }
+      ctx.strokeStyle = 'hsla(' + p.hue + ',100%,' + (58 + p.life * 35) + '%,' + p.life + ')';
+      ctx.lineWidth = p.w; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 2.4, p.y - p.vy * 2.4); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    requestAnimationFrame(draw);
+  })();
+
+  /* ── 喊招／閃光／震動 ── */
+  var callEl = document.getElementById('call'), flashEl = document.getElementById('flash');
+  function call(txt, small) {
+    callEl.querySelector('b').textContent = txt; callEl.className = 'call' + (small ? ' small' : '');
+    void callEl.offsetWidth; callEl.classList.add('on');
+  }
+  function flash(white) { flashEl.className = 'flash' + (white ? ' white' : ''); void flashEl.offsetWidth; flashEl.classList.add('on'); }
+  function shake() { if (reduce) { return; } stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }
+
+  /* ── 對戰：發射後兩顆在原位旋轉，每 2.8 秒撞擊一次（火花＋白光＋震動＋原地脈衝） ── */
+  var running = false, start = 0, PERIOD = 2800, lastHit = -1, hits = 0;
+  var CALLS = ['BURST!', 'X-TREME!', 'CLASH!', 'GO SHOOT!'];
+  function loop(now) {
+    if (!running) { return; }
+    var t = (now - start) / PERIOD, cyc = Math.floor(t), f = t - cyc;
+    if (f >= .35 && lastHit !== cyc && !hasVideo) {
+      lastHit = cyc; hits++;
+      burst(reduce ? 30 : 150, 1); flash(false); shake();
+      [tB, tR].forEach(function (el) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); });
+      if (hits % 3 === 0) { call(CALLS[(hits / 3 - 1) % CALLS.length], true); }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  /* ── AI 影片（battle.mp4）：載得到才切換；影片模式下陀螺撞擊的火花／閃光交給影片本身，不再另外疊 ── */
+  var vid = document.getElementById('vid'), hasVideo = false;
+  vid.addEventListener('loadeddata', function () { hasVideo = true; });
+  vid.addEventListener('error', function () { hasVideo = false; stage.classList.remove('has-video'); });
+  vid.src = 'battle.mp4';
+
+  /* ── 開場：3・2・1・GO SHOOT! → 海報各圖層進場 → 開打 ── */
+  var timers = [];
+  function play() {
+    timers.forEach(clearTimeout); timers = []; running = false;
+    stage.classList.remove('go', 'has-video'); vid.pause(); kings.forEach(function (k) { k.classList.remove('in'); }); void stage.offsetWidth;
+    document.getElementById('bgblur').classList.remove('on');
+    var seq = [['3', 0], ['2', 450], ['1', 900], ['GO SHOOT!', 1350]];
+    seq.forEach(function (s) { timers.push(setTimeout(function () { call(s[0], s[0].length > 2); if (s[0] === 'GO SHOOT!') { flash(true); } }, s[1])); });
+    timers.push(setTimeout(function () { stage.classList.add('go'); }, 0));
+    timers.push(setTimeout(function () { document.getElementById('bgblur').classList.add('on'); }, 1900));
+    timers.push(setTimeout(function () { burst(reduce ? 30 : 220, 1.3); flash(false); shake(); }, 2450));   // 落場第一擊
+    // 四大天王依序登場（落定在 0.27 秒時：白光＋腳下火花＋震動）
+    timers.push(setTimeout(function () { call('四大天王', true); }, 2750));
+    KINGS.forEach(function (k, i) {
+      var at = 3500 + i * 520;
+      timers.push(setTimeout(function () { kings[i].classList.remove('in'); void kings[i].offsetWidth; kings[i].classList.add('in'); }, at));
+      timers.push(setTimeout(function () { burst(reduce ? 15 : 70, .8, k[0] + k[2] / 2, k[1] + k[3] * .97); shake(); }, at + 270));
+    });
+    timers.push(setTimeout(function () {
+      // 四個人都登場後：有 AI 影片就淡入從頭播（影片裡的人被上面的四大天王圖層蓋住），沒有就照原本的撞擊循環
+      if (hasVideo) { try { vid.currentTime = 0; } catch (e) {} vid.play().catch(function () {}); stage.classList.add('has-video'); flash(true); }
+      running = true; start = performance.now(); lastHit = -1; hits = 0; requestAnimationFrame(loop);
+    }, 3500 + 4 * 520 + 400));
+  }
+  document.getElementById('replay').addEventListener('click', play);
+  play();
+
+  /* ── 開賽倒數 ── */
+  var box = document.getElementById('count');
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function tick() {
+    var ms = EVENT_AT - new Date();
+    if (ms <= 0) { box.innerHTML = ms > -3 * 3600e3 ? '<span class="k">🔥 比賽進行中 🔥</span>' : '<span class="k">感謝參賽・下屆見</span>'; return; }
+    var s = Math.floor(ms / 1000), d = Math.floor(s / 86400);
+    box.innerHTML = '<span class="k">距離開賽</span><span class="v">' + (d ? d + ' 天 ' : '') + pad(Math.floor(s % 86400 / 3600)) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60) + '</span>';
+  }
+  tick(); setInterval(tick, 1000);
+
+  /* ── 看海報 ── */
+  var lb = document.getElementById('lb');
+  document.getElementById('posterBtn').addEventListener('click', function () { lb.classList.add('on'); });
+  lb.addEventListener('click', function () { lb.classList.remove('on'); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { lb.classList.remove('on'); } });
+})();
+</script>
+</body>
+</html>
