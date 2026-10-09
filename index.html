@@ -5,152 +5,215 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽</title>
 <!--
-  2026-10-08 使用者：「獨立小工作，幫我生成動畫網頁，參考這張海報」
-  第二版（使用者看完第一版：「文字美感太差」「戰鬥陀螺也不逼真」「四大天王也消失了」「陀螺戰鬥去參考網路上相關資料」「地點改成五樓會議室」）：
-  → 改成「會動的海報」：字、陀螺、四個人全部直接用海報本身的素材（從海報切成圖層），動畫照真實對戰流程：
-    3・2・1 GO SHOOT! 發射 → 陀螺落場高速旋轉、繞著晃動（歲差）→ 衝撞噴火花＋白光＋畫面震動 → 不時喊 BURST!／X-TREME!
-    （Beyblade X 規則：Spin Finish 1 分、Over／Burst Finish 2 分、X-treme Finish 3 分）
-  圖層：base.webp＝底圖（四個人處是黑色剪影，人物依序登場揭曉）；poster.webp＝看海報用（地點已改成五樓會議室）；bar.webp＝資訊條；
-        battle.mp4（選用）＝AI 影片工具生成的陀螺對戰片，放進來就自動取代程式轉的陀螺；top_blue／top_red＝陀螺（斜放的橢圓先拉成正圓，被人頭擋到的地方用 180° 對面補，
-        顯示時再壓回原本斜角 → 在原平面上轉）；people.png＝四個人（macOS Vision 主體去背）；title.webp＋title_mask.png＝標題與掃光遮罩。
-  獨立靜態頁：不用登入、沒有外部資源。
+  2026-10-08 使用者：「獨立小工作，幫我生成動畫網頁，參考這張海報」→ 會動的海報（字、陀螺、四大天王都用海報本身素材）
+  2026-10-09 使用者：「你要不要把整個動畫重新編排」→ 選「動畫預告片式」＋特寫只放 1P～4P。分鏡（約 14 秒後定格成海報）：
+    0–1.6   全黑，場館燈一盞盞亮起（喀）
+    1.6–3.1 3・2・1，鏡頭慢慢往前推（電影黑邊）
+    3.1–8.2 GO SHOOT! 白閃 → 陀螺對戰影片放大特寫，撞擊時畫面震；8.2 大爆炸全白閃
+    8.4–10  煙霧散開、影片縮回海報中間（鏡頭拉遠），「戰鬥陀螺」重擊落下、下兩行滑入
+    10.3–13.2 四大天王一人一張斜切特寫（1P～4P），特寫退場時本人落進海報位置
+    13.4–14 資訊條左右飛入合體（五樓會議室／10/13 17:50），開賽倒數出現
+    之後   定格海報：陀螺影片在中間循環（撞擊／爆炸時輕震＋音效）、標題掃光、人物待機晃動
+  素材：base.webp（底圖：人＝黑色剪影、標題區模糊）、battle.mp4（Gemini 生成、只裁碗型場＋兩顆陀螺；撞擊 2.65／爆炸 6.28／再撞 9.15 秒）、
+        title_a／title_b.webp（標題兩段）、title_mask.png（掃光遮罩）、p1～p4.png（四大天王去背）、bar.webp（資訊條）、poster.webp（看海報用）、
+        top_blue／top_red.png（沒有影片時的備案：原地轉的陀螺）。
+  音效：右上「🔇 音效」（瀏覽器規定要點一下才能出聲），Web Audio 即時合成。獨立靜態頁：不用登入、沒有外部資源。
 -->
 <style>
   :root { --gold1:#fff3b0; --gold2:#ffc93c; --gold3:#c47a00; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: #03040a; overflow: hidden; }
+  html, body { height: 100%; background: #000; overflow: hidden; }
   body { font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; color: #fff; }
-
-  /* 舞台＝海報比例 768:1376，塞滿視窗；寬螢幕兩側用海報模糊放大當背景 */
-  .bgblur { position: fixed; inset: -8%; background: url(poster.webp) center / cover; filter: blur(28px) brightness(.45) saturate(1.2); opacity: 0; transition: opacity 1s; }
-  .bgblur.on { opacity: 1; }
-  .stage { position: absolute; left: 50%; top: 50%; --w: min(100vw, calc(100vh * 768 / 1376)); width: var(--w); height: calc(var(--w) * 1376 / 768);
-    transform: translate(-50%, -50%); overflow: hidden; background: #03040a; box-shadow: 0 0 80px rgba(0,0,0,.8); }
-  .stage > * { position: absolute; }
-  .layer-full { inset: 0; width: 100%; height: 100%; }
   img { display: block; -webkit-user-drag: none; user-select: none; }
 
-  .base { opacity: 0; }
-  .go .base { animation: fadeIn .35s 1.95s ease-out forwards; }
-  @keyframes fadeIn { to { opacity: 1; } }
+  .bgblur { position: fixed; inset: -8%; background: url(poster.webp) center / cover; filter: blur(28px) brightness(.4) saturate(1.2); opacity: 0; transition: opacity 1.2s; }
+  .bgblur.on { opacity: 1; }
+  .stage { position: absolute; left: 50%; top: 50%; --w: min(100vw, calc(100vh * 768 / 1376)); --h: calc(var(--w) * 1376 / 768);
+    width: var(--w); height: var(--h); transform: translate(-50%, -50%); overflow: hidden; background: #000; }
+  .cam { position: absolute; inset: 0; transform-origin: 50% 45%; }
+  .cam > *, .stage > * { position: absolute; }
+  .full { inset: 0; width: 100%; height: 100%; }
+  .P { --pw: 768; --ph: 1376; }   /* 海報座標換算用 */
+  .hide { opacity: 0; }
+  .fade { transition: opacity .6s; }
 
-  /* 標題：重擊進場（放大＋模糊 → 落定），之後每 4.5 秒一道掃光只掃過字 */
-  .title { left: 0; top: 0; width: 100%; height: calc(100% * 450 / 1376); opacity: 0; transform-origin: 50% 45%; }
-  .title img { width: 100%; height: 100%; }
-  .go .title { animation: slam .6s 1.9s cubic-bezier(.2,1.5,.35,1) forwards; }
-  @keyframes slam { 0% { opacity: 0; transform: scale(1.35); filter: blur(8px) brightness(2); } 55% { opacity: 1; transform: scale(.97); filter: blur(0) brightness(1.4); }
-    100% { opacity: 1; transform: scale(1); filter: none; } }
-  .glint { inset: 0; -webkit-mask: url(title_mask.png) center / 100% 100% no-repeat; mask: url(title_mask.png) center / 100% 100% no-repeat; pointer-events: none; }
-  .glint::before { content: ""; position: absolute; top: -10%; bottom: -10%; width: 26%; left: -40%;
-    background: linear-gradient(100deg, transparent, rgba(255,255,255,.95) 45%, rgba(255,240,190,.9) 55%, transparent);
-    transform: skewX(-18deg); animation: glint 4.5s 3s infinite; }
-  @keyframes glint { 0% { left: -40%; } 28%, 100% { left: 125%; } }
+  /* ① 場館燈 */
+  .light { top: -12%; width: 30%; height: 80%; transform-origin: 50% 0; opacity: 0; pointer-events: none; mix-blend-mode: screen;
+    background: linear-gradient(to bottom, rgba(210,230,255,.75), rgba(160,200,255,.18) 45%, transparent 80%); filter: blur(3px);
+    clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%); }
+  .light.on { animation: lightOn .5s steps(1) forwards, sway 6s .5s ease-in-out infinite alternate; }
+  @keyframes lightOn { 0% { opacity: .9; } 10% { opacity: .1; } 25% { opacity: .9; } 35% { opacity: .3; } 50%, 100% { opacity: 1; } }
+  @keyframes sway { from { transform: rotate(var(--r0)); } to { transform: rotate(var(--r1)); } }
+  .lights.dim .light { transition: opacity 1.2s; opacity: .35 !important; }
+  .haze { inset: 0; background: radial-gradient(ellipse 80% 40% at 50% 18%, rgba(120,160,255,.18), transparent 70%); opacity: 0; transition: opacity 1s; }
+  .haze.on { opacity: 1; }
 
-  /* 陀螺：外層＝位置，中層＝壓回斜角（scaleY），內層＝原地旋轉。
-     2026-10-08 使用者：「陀螺畫面完全不行」——旋轉層一位移，底下海報原本靜止的陀螺就露出來（兩顆疊在一起）、殘影＋光暈又把畫面弄糊。
-     → 陀螺不再位移、拿掉殘影與光暈；只在原地轉（遮罩貼緊陀螺、蓋住底下那顆），撞擊時原地脈衝放大。 */
-  .top { will-change: transform; opacity: 0; }
-  .go .top { animation: drop .7s 2.0s cubic-bezier(.2,1.3,.4,1) forwards; }
-  @keyframes drop { 0% { opacity: 0; transform: scale(.25) rotate(-90deg); } 100% { opacity: 1; transform: none; } }
+  /* 電影黑邊 */
+  .bars::before, .bars::after { content: ""; position: absolute; left: 0; right: 0; height: 0; background: #000; z-index: 30; transition: height .6s cubic-bezier(.3,0,.2,1); }
+  .bars::before { top: 0; } .bars::after { bottom: 0; }
+  .bars.on::before, .bars.on::after { height: 12%; }
+  .bars { inset: 0; pointer-events: none; z-index: 30; }
+
+  /* 底圖（海報、人＝剪影、標題區模糊） */
+  .base { opacity: 0; transition: opacity 1s; }
+  .base.on { opacity: 1; }
+  .dimtops { left: 0; width: 100%; top: calc(430 / 1376 * 100%); height: calc(400 / 1376 * 100%); opacity: 0; transition: opacity 1s;
+    background: radial-gradient(ellipse 70% 58% at 50% 50%, rgba(4,6,14,.94) 55%, rgba(4,6,14,.6) 75%, transparent 100%); }
+  .dimtops.on { opacity: 1; }
+
+  /* 陀螺影片：特寫（滿版中間）↔ 海報位置，用 transition 做鏡頭拉遠 */
+  .vband { opacity: 0; transition: left 1.1s cubic-bezier(.5,0,.15,1), top 1.1s cubic-bezier(.5,0,.15,1), width 1.1s cubic-bezier(.5,0,.15,1), height 1.1s cubic-bezier(.5,0,.15,1), opacity .25s;
+    left: calc(-76 / 768 * 100%); width: calc(920 / 768 * 100%); top: calc(480 / 1376 * 100%); height: calc(280 / 1376 * 100%);
+    -webkit-mask: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent), linear-gradient(to right, transparent 4%, #000 14%, #000 86%, transparent 96%);
+    -webkit-mask-composite: source-in; mask: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent), linear-gradient(to right, transparent 4%, #000 14%, #000 86%, transparent 96%);
+    mask-composite: intersect; }
+  .vband.close { --vh: calc(var(--h) * .5); height: var(--vh); width: calc(var(--vh) * 920 / 280); top: calc(50% - var(--vh) / 2); left: calc(50% - var(--vh) * 920 / 280 / 2); }
+  .vband.on { opacity: 1; }
+  .vband video { width: 100%; height: 100%; object-fit: fill; display: block; }
+
+  /* 沒有影片時的備案：原地轉的陀螺 */
+  .top { opacity: 0; transition: opacity .4s; }
+  .top.on { opacity: 1; }
   .squash { position: relative; width: 100%; aspect-ratio: 1; }
   .squash img { position: absolute; inset: 0; width: 100%; height: 100%; animation: spin 1.15s linear infinite; }
   .top.red .squash img { animation-direction: reverse; animation-duration: 1.05s; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .top .pulse { width: 100%; height: 100%; }
-  .top.hit .pulse { animation: pulse .35s ease-out; }
-  @keyframes pulse { 0% { transform: scale(1); } 30% { transform: scale(1.045); filter: brightness(1.35); } 100% { transform: scale(1); } }
 
-  /* 四大天王（2026-10-08 使用者：「四天王要有進場順序跟動畫」）：底圖先是四個黑色剪影，
-     依序 1→2→3→4 登場（左兩位從左／下、右兩位從下／右衝進來），落定瞬間全身發白光再還原＋腳下噴火花＋畫面一震，之後各自待機晃動 */
+  /* 煙霧（爆炸後鏡頭拉遠時散開） */
+  .smoke { inset: 0; pointer-events: none; opacity: 0; }
+  .smoke i { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgba(220,210,200,.55), rgba(150,140,140,.25) 55%, transparent); filter: blur(6px); }
+  .smoke.on { animation: smokeOut 1.8s ease-out forwards; }
+  .smoke.on i { animation: puff 1.8s ease-out forwards; }
+  @keyframes smokeOut { 0% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes puff { from { transform: scale(.4); } to { transform: scale(2.1); } }
+
+  /* 標題兩段 */
+  .tA { left: 0; top: 0; width: 100%; height: calc(298 / 1376 * 100%); opacity: 0; transform-origin: 50% 60%; }
+  .tB { left: 0; top: calc(298 / 1376 * 100%); width: 100%; height: calc(152 / 1376 * 100%); opacity: 0; }
+  .tA img, .tB img { width: 100%; height: 100%; }
+  .tA.in { animation: slam .6s cubic-bezier(.2,1.5,.35,1) forwards; }
+  @keyframes slam { 0% { opacity: 0; transform: scale(1.6); filter: blur(10px) brightness(2.2); } 55% { opacity: 1; transform: scale(.96); filter: blur(0) brightness(1.4); }
+    100% { opacity: 1; transform: none; filter: none; } }
+  .tB.in { animation: slideUp .55s cubic-bezier(.2,1.2,.3,1) forwards; }
+  @keyframes slideUp { 0% { opacity: 0; transform: translateY(40%) scaleY(1.3); filter: brightness(2); } 100% { opacity: 1; transform: none; filter: none; } }
+  .glint { left: 0; top: 0; width: 100%; height: calc(450 / 1376 * 100%); pointer-events: none; opacity: 0;
+    -webkit-mask: url(title_mask.png) center / 100% 100% no-repeat; mask: url(title_mask.png) center / 100% 100% no-repeat; }
+  .glint.on { opacity: 1; }
+  .glint::before { content: ""; position: absolute; top: -10%; bottom: -10%; width: 26%; left: -40%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.95) 45%, rgba(255,240,190,.9) 55%, transparent); transform: skewX(-18deg); }
+  .glint.on::before { animation: glint 4.5s .2s infinite; }
+  @keyframes glint { 0% { left: -40%; } 28%, 100% { left: 125%; } }
+
+  /* 四大天王：最終位置（特寫退場時本人落進來），之後待機晃動 */
   .king { opacity: 0; transform-origin: 50% 100%; }
   .king img { width: 100%; height: 100%; }
-  .king.in { animation: kin .6s cubic-bezier(.2,1.2,.35,1) forwards, idle 2.6s .6s ease-in-out infinite; }
-  .k1.in { --fx: -60%; --fy: 0%; } .k2.in { --fx: 0%; --fy: 45%; } .k3.in { --fx: 0%; --fy: 45%; } .k4.in { --fx: 60%; --fy: 0%; }
-  .k2.in { animation-duration: .6s, 3.1s; } .k3.in { animation-duration: .6s, 2.3s; } .k4.in { animation-duration: .6s, 2.8s; }
-  @keyframes kin { 0% { opacity: 0; transform: translate(var(--fx), var(--fy)) scale(1.08); filter: brightness(0); }
-    45% { opacity: 1; transform: translate(0, 0) scale(1.04); filter: brightness(6) saturate(0); }
-    100% { opacity: 1; transform: none; filter: none; } }
+  .king.in { animation: kin .5s cubic-bezier(.2,1.2,.35,1) forwards, idle 2.6s .5s ease-in-out infinite; }
+  .k2.in { animation-duration: .5s, 3.1s; } .k3.in { animation-duration: .5s, 2.3s; } .k4.in { animation-duration: .5s, 2.8s; }
+  @keyframes kin { 0% { opacity: 0; transform: translateY(-14%) scale(1.25); filter: brightness(6) saturate(0); }
+    55% { opacity: 1; transform: translateY(1%) scale(.98); filter: brightness(2.5) saturate(.5); } 100% { opacity: 1; transform: none; filter: none; } }
   @keyframes idle { 0%, 100% { opacity: 1; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-.8%); } }
 
-  canvas#fx { inset: 0; width: 100%; height: 100%; pointer-events: none; }
-  /* 2026-10-09 使用者用 Gemini 生成陀螺對戰影片（橫式 1280×720，含官方 logo／日文字幕／路人）→ 選「只裁中間兩顆陀螺」：
-     已裁成 battle.mp4（920×280＝原片 x180–1100、y350–630，只剩碗型場＋兩顆陀螺＋爆炸，logo／字幕／路人都不在檔案裡）。
-     放在海報陀螺的位置（海報座標 y480–760、左右各超出 76），四邊淡出融進背景；底下海報原本靜止的陀螺壓暗（dimtops），
-     四大天王仍在影片前面。影片模式下不再另外疊程式火花（影片自己有撞擊爆炸）。載不到影片就退回程式轉的陀螺。 */
-  .vband { left: calc(-76 / 768 * 100%); width: calc(920 / 768 * 100%); top: calc(480 / 1376 * 100%); height: calc(280 / 1376 * 100%); opacity: 0;
-    -webkit-mask: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent), linear-gradient(to right, transparent 4%, #000 14%, #000 86%, transparent 96%);
-    -webkit-mask-composite: source-in; mask: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent), linear-gradient(to right, transparent 4%, #000 14%, #000 86%, transparent 96%);
-    mask-composite: intersect; }
-  .vband video { width: 100%; height: 100%; object-fit: fill; display: block; }
-  .dimtops { left: 0; width: 100%; top: calc(430 / 1376 * 100%); height: calc(400 / 1376 * 100%); opacity: 0;
-    background: radial-gradient(ellipse 70% 58% at 50% 50%, rgba(4,6,14,.94) 55%, rgba(4,6,14,.6) 75%, transparent 100%); }
-  .stage.has-video .top { display: none; }
-  .go.has-video .vband, .go.has-video .dimtops { animation: fadeIn .5s 1.95s forwards; }
-  .bar { left: 0; bottom: 0; width: 100%; height: calc(100% * 208 / 1376); opacity: 0; }
-  .go .bar { animation: fadeIn .4s 1.95s forwards; }
-  .flash { inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: screen;
-    background: radial-gradient(circle at 51% 45%, rgba(255,252,230,.95), rgba(255,200,120,.35) 18%, transparent 42%); }
-  .flash.on { animation: flash .45s ease-out; }
-  .flash.white { background: #fff; }
-  @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
-  .stage.shake { animation: shake .32s; }
-  @keyframes shake { 20% { transform: translate(calc(-50% + 5px), calc(-50% - 4px)); } 45% { transform: translate(calc(-50% - 5px), calc(-50% + 3px)); }
-    70% { transform: translate(calc(-50% + 3px), calc(-50% + 2px)); } }
+  /* 四大天王特寫卡：斜切色帶＋速度線＋人物放大＋1P～4P */
+  .kcard { inset: 0; pointer-events: none; opacity: 0; z-index: 20; }
+  .kcard .band { position: absolute; inset: 0; clip-path: polygon(0 24%, 100% 14%, 100% 74%, 0 84%); background: var(--c);
+    box-shadow: inset 0 0 120px rgba(0,0,0,.55); }
+  .kcard .band::after { content: ""; position: absolute; inset: 0; opacity: .35;
+    background: repeating-linear-gradient(100deg, transparent 0 18px, rgba(255,255,255,.55) 18px 20px, transparent 20px 46px); animation: lines .35s linear infinite; }
+  @keyframes lines { to { background-position: 92px 0; } }
+  .kcard .edge { position: absolute; inset: 0; clip-path: polygon(0 23%, 100% 13%, 100% 14.4%, 0 24.4%); background: #fff; }
+  .kcard .edge.b { clip-path: polygon(0 83.6%, 100% 73.6%, 100% 75%, 0 85%); }
+  .kcard img { position: absolute; bottom: 16%; height: 70%; width: auto; left: 50%; transform: translateX(-50%); filter: drop-shadow(0 0 18px rgba(0,0,0,.6)); }
+  .kcard .tag { position: absolute; top: 15%; font-family: Impact, "Arial Black", sans-serif; font-style: italic; font-size: calc(var(--w) * .3); line-height: 1;
+    background: linear-gradient(180deg, #fff 0%, var(--gold1) 35%, var(--gold2) 65%, var(--gold3) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-stroke: calc(var(--w) * .005) #1a0d00; filter: drop-shadow(0 5px 0 #000) drop-shadow(0 0 24px rgba(255,170,60,.8)); }
+  .kcard.l .tag { left: 6%; } .kcard.r .tag { right: 6%; }
+  .kcard.show { animation: cardIn .78s cubic-bezier(.2,.9,.3,1) forwards; }
+  .kcard.show img { animation: cardZoom .78s linear forwards; }
+  .kcard.show .tag { animation: tagIn .78s cubic-bezier(.2,1.4,.4,1) forwards; }
+  @keyframes cardIn { 0% { opacity: 1; transform: translateX(var(--from)); } 18% { transform: none; } 78% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(var(--to)); } }
+  @keyframes cardZoom { from { transform: translateX(-50%) scale(1.05); } to { transform: translateX(-50%) scale(1.16); } }
+  @keyframes tagIn { 0% { opacity: 0; transform: scale(2.2) skewX(-10deg); } 25% { opacity: 1; transform: scale(1) skewX(-10deg); } 100% { opacity: 1; transform: scale(1.05) skewX(-10deg); } }
 
-  /* 喊招（發射口令／Burst／X-treme）：粗斜體＋金色漸層＋黑邊＋光暈 */
-  .call { left: 0; right: 0; top: 41%; text-align: center; pointer-events: none; opacity: 0;
-    font-family: Impact, "Arial Black", "Helvetica Neue", sans-serif; font-style: italic; letter-spacing: .02em;
-    font-size: calc(var(--w) * .2); line-height: 1; }
+  /* 資訊條：左右兩半飛入合體 */
+  .bar { left: 0; bottom: 0; width: 100%; height: calc(208 / 1376 * 100%); opacity: 0; }
+  .bar.l { clip-path: inset(0 50% 0 0); } .bar.r { clip-path: inset(0 0 0 50%); }
+  .bar.in.l { animation: barL .5s cubic-bezier(.2,1.1,.3,1) forwards; } .bar.in.r { animation: barR .5s cubic-bezier(.2,1.1,.3,1) forwards; }
+  @keyframes barL { from { opacity: 1; transform: translateX(-100%); } to { opacity: 1; transform: none; } }
+  @keyframes barR { from { opacity: 1; transform: translateX(100%); } to { opacity: 1; transform: none; } }
+  .count { left: 0; right: 0; bottom: 0; height: calc(100% * 44 / 1376); display: flex; align-items: center; justify-content: center; gap: .5em;
+    font-size: calc(var(--w) * .033); font-weight: 900; letter-spacing: .06em; opacity: 0; transition: opacity .6s; }
+  .count.on { opacity: 1; }
+  .count .k { color: var(--gold2); }
+  .count .v { font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,200,80,.5); }
+
+  canvas#fx { inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 25; }
+  .flash { inset: 0; pointer-events: none; opacity: 0; z-index: 40; mix-blend-mode: screen;
+    background: radial-gradient(circle at 50% 50%, rgba(255,252,230,.95), rgba(255,200,120,.35) 22%, transparent 48%); }
+  .flash.white { background: #fff; mix-blend-mode: normal; }
+  .flash.on { animation: flash .5s ease-out; }
+  .flash.long.on { animation-duration: 1.1s; }
+  @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .stage.shake { animation: shake .32s; } .stage.shake.big { animation: shakeBig .6s; }
+  @keyframes shake { 20% { transform: translate(calc(-50% + 5px), calc(-50% - 4px)); } 45% { transform: translate(calc(-50% - 5px), calc(-50% + 3px)); } 70% { transform: translate(calc(-50% + 3px), calc(-50% + 2px)); } }
+  @keyframes shakeBig { 10% { transform: translate(calc(-50% + 12px), calc(-50% - 9px)); } 25% { transform: translate(calc(-50% - 12px), calc(-50% + 8px)); }
+    40% { transform: translate(calc(-50% + 9px), calc(-50% + 6px)); } 60% { transform: translate(calc(-50% - 6px), calc(-50% - 5px)); } 80% { transform: translate(calc(-50% + 3px), calc(-50% + 2px)); } }
+
+  /* 喊招 */
+  .call { left: 0; right: 0; top: 41%; text-align: center; pointer-events: none; opacity: 0; z-index: 35;
+    font-family: Impact, "Arial Black", "Helvetica Neue", sans-serif; font-style: italic; letter-spacing: .02em; font-size: calc(var(--w) * .26); line-height: 1; }
   .call b { display: inline-block; background: linear-gradient(180deg, #fff 0%, var(--gold1) 30%, var(--gold2) 60%, var(--gold3) 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: calc(var(--w) * .004) #2a1500;
     filter: drop-shadow(0 4px 0 #000) drop-shadow(0 0 22px rgba(255,170,60,.85)); padding: 0 .08em; }
-  .call.small { font-size: calc(var(--w) * .13); top: 44%; }
+  .call.small { font-size: calc(var(--w) * .15); top: 44%; }
   .call.on { animation: call .9s cubic-bezier(.2,1.4,.4,1) forwards; }
   @keyframes call { 0% { opacity: 0; transform: scale(2.4) skewX(-10deg); } 22% { opacity: 1; transform: scale(1) skewX(-10deg); }
     75% { opacity: 1; transform: scale(1.04) skewX(-10deg); } 100% { opacity: 0; transform: scale(.9) skewX(-10deg); } }
 
-  /* 開賽倒數：放在資訊條下方的暗邊 */
-  .count { left: 0; right: 0; bottom: 0; height: calc(100% * 44 / 1376); display: flex; align-items: center; justify-content: center; gap: .5em;
-    font-size: calc(var(--w) * .033); font-weight: 900; letter-spacing: .06em; opacity: 0; }
-  .go .count { animation: fadeIn .5s 2.8s forwards; }
-  .count .k { color: var(--gold2); }
-  .count .v { font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,200,80,.5); }
-
-  .ctl { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 10; display: flex; gap: 6px; }
+  .ctl { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 50; display: flex; gap: 6px; }
   .ctl button { border: 1px solid rgba(255,255,255,.35); background: rgba(0,0,0,.5); color: #fff; border-radius: 999px; padding: 7px 13px;
     font: 700 13px/1 "Microsoft JhengHei", "PingFang TC", sans-serif; cursor: pointer; backdrop-filter: blur(4px); }
   .ctl button:hover { background: rgba(255,255,255,.16); }
-  /* 音效鈕：還沒開時金色呼吸提示（瀏覽器規定要點一下才能出聲） */
   .ctl button.snd { border-color: rgba(255,201,60,.8); color: #ffd76a; animation: sndHint 1.6s ease-in-out infinite; }
   .ctl button.snd.on { animation: none; color: #fff; border-color: rgba(255,255,255,.35); }
   @keyframes sndHint { 50% { box-shadow: 0 0 0 6px rgba(255,201,60,.25); } }
-  .lb { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.9); display: none; align-items: center; justify-content: center; padding: 16px; }
+  .lb { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.9); display: none; align-items: center; justify-content: center; padding: 16px; }
   .lb.on { display: flex; }
   .lb img { max-width: 100%; max-height: 100%; border-radius: 10px; }
 
-  @media (prefers-reduced-motion: reduce) {
-    .squash img { animation-duration: 3s !important; } .glint::before { animation: none !important; }
-  }
+  @media (prefers-reduced-motion: reduce) { .light.on { animation: none; opacity: 1; } .kcard .band::after { animation: none; } }
 </style>
 </head>
 <body>
 <div class="bgblur" id="bgblur"></div>
 <div class="stage" id="stage" role="img" aria-label="戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽，比賽地點五樓會議室，比賽時間 10/13 17:50">
-  <img class="base layer-full" src="base.webp" alt="">
-  <div class="dimtops"></div>
-  <div class="vband"><video id="vid" muted autoplay loop playsinline preload="auto"></video></div>
-  <div class="top blue" id="topB"><div class="pulse"><div class="squash"><img src="top_blue.png" alt=""></div></div></div>
-  <div class="top red" id="topR"><div class="pulse"><div class="squash"><img src="top_red.png" alt=""></div></div></div>
+  <div class="cam" id="cam">
+    <img class="base full" id="base" src="base.webp" alt="">
+    <div class="haze" id="haze"></div>
+    <div class="lights full" id="lights"></div>
+    <div class="dimtops" id="dimtops"></div>
+    <div class="vband" id="vband"><video id="vid" muted autoplay loop playsinline preload="auto"></video></div>
+    <div class="top blue" id="topB"><div class="squash"><img src="top_blue.png" alt=""></div></div>
+    <div class="top red" id="topR"><div class="squash"><img src="top_red.png" alt=""></div></div>
+    <div class="smoke" id="smoke"></div>
+    <div class="king k1" id="k1"><img src="p1.png" alt=""></div>
+    <div class="king k2" id="k2"><img src="p2.png" alt=""></div>
+    <div class="king k3" id="k3"><img src="p3.png" alt=""></div>
+    <div class="king k4" id="k4"><img src="p4.png" alt=""></div>
+    <div class="tA" id="tA"><img src="title_a.webp" alt=""></div>
+    <div class="tB" id="tB"><img src="title_b.webp" alt=""></div>
+    <div class="glint" id="glint"></div>
+    <img class="bar l" id="barL" src="bar.webp" alt="">
+    <img class="bar r" id="barR" src="bar.webp" alt="">
+    <div class="count" id="count"></div>
+  </div>
+  <div class="kcard l" id="kc1" style="--c: linear-gradient(110deg,#0b2a7a,#2f7bff 60%,#7fd0ff); --from: -110%; --to: 110%;"><div class="band"></div><div class="edge"></div><div class="edge b"></div><img src="p1.png" alt=""><span class="tag">1P</span></div>
+  <div class="kcard r" id="kc2" style="--c: linear-gradient(250deg,#5a3500,#e0a000 60%,#ffe27a); --from: 110%; --to: -110%;"><div class="band"></div><div class="edge"></div><div class="edge b"></div><img src="p2.png" alt=""><span class="tag">2P</span></div>
+  <div class="kcard l" id="kc3" style="--c: linear-gradient(110deg,#5a0808,#e0321f 60%,#ff9a6a); --from: -110%; --to: 110%;"><div class="band"></div><div class="edge"></div><div class="edge b"></div><img src="p3.png" alt=""><span class="tag">3P</span></div>
+  <div class="kcard r" id="kc4" style="--c: linear-gradient(250deg,#2a0a55,#8a3cff 60%,#d2a8ff); --from: 110%; --to: -110%;"><div class="band"></div><div class="edge"></div><div class="edge b"></div><img src="p4.png" alt=""><span class="tag">4P</span></div>
   <canvas id="fx"></canvas>
-  <div class="king k1" id="k1"><img src="p1.png" alt=""></div>
-  <div class="king k2" id="k2"><img src="p2.png" alt=""></div>
-  <div class="king k3" id="k3"><img src="p3.png" alt=""></div>
-  <div class="king k4" id="k4"><img src="p4.png" alt=""></div>
-  <div class="title"><img src="title.webp" alt=""><div class="glint"></div></div>
-  <img class="bar" id="bar" src="bar.webp" alt="">
-  <div class="flash" id="flash"></div>
+  <div class="bars" id="bars"></div>
   <div class="call" id="call"><b></b></div>
-  <div class="count" id="count"></div>
+  <div class="flash" id="flash"></div>
 </div>
 <div class="ctl"><button type="button" id="sndBtn" class="snd" title="開／關音效（開啟後從頭重播）">🔇 音效</button><button type="button" id="replay">↻ 重播</button><button type="button" id="posterBtn">看海報</button></div>
 <div class="lb" id="lb"><img src="poster.webp" alt="戰鬥陀螺 2026 LTCUP 黃光盃 G4 第一屆大賽 海報"></div>
@@ -158,35 +221,40 @@
 <script>
 (function () {
   'use strict';
-  var PW = 768, PH = 1376;                                   // 海報座標
+  var PW = 768, PH = 1376;
   var TOPS = { B: { cx: 207, cy: 618, rx: 205, ry: 170 }, R: { cx: 592, cy: 626, rx: 182, ry: 168 } };
-  var KINGS = [[21, 714, 232, 468], [206, 797, 230, 389], [415, 773, 202, 413], [604, 711, 141, 483]];   // 四個人在海報上的位置 x,y,w,h
-  var HIT = { x: 396, y: 612 };                               // 兩顆陀螺接觸點（海報上火花的位置）
+  var KINGS = [[21, 714, 232, 468], [206, 797, 230, 389], [415, 773, 202, 413], [604, 711, 141, 483]];
   var EVENT_AT = new Date(2026, 9, 13, 17, 50, 0);
+  var VOFF = 1.2;                                             // 對戰特寫從影片 1.2 秒開始（省掉前面陀螺慢慢靠近的段落）
+  var VEV = [[2.65, 'clash'], [6.28, 'boom'], [9.15, 'clash']];   // battle.mp4 撞擊／爆炸秒數
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var stage = document.getElementById('stage');
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage'), cam = $('cam'), vid = $('vid'), vband = $('vband');
   function pct(v, of) { return (v / of * 100) + '%'; }
 
-  // 版面：照海報座標放（陀螺：寬＝2rx 的正方形，置中後再 scaleY(ry/rx) 壓回斜角）
+  // 版面（海報座標）
   function placeTop(el, t) {
-    el.style.left = pct(t.cx - t.rx, PW); el.style.top = pct(t.cy - t.rx, PH);
-    el.style.width = pct(t.rx * 2, PW);
+    el.style.left = pct(t.cx - t.rx, PW); el.style.top = pct(t.cy - t.rx, PH); el.style.width = pct(t.rx * 2, PW);
     el.querySelector('.squash').style.transform = 'scaleY(' + (t.ry / t.rx) + ')';
   }
-  var tB = document.getElementById('topB'), tR = document.getElementById('topR');
-  placeTop(tB, TOPS.B); placeTop(tR, TOPS.R);
+  placeTop($('topB'), TOPS.B); placeTop($('topR'), TOPS.R);
   var kings = KINGS.map(function (k, i) {
-    var el = document.getElementById('k' + (i + 1));
-    el.style.left = pct(k[0], PW); el.style.top = pct(k[1], PH); el.style.width = pct(k[2], PW); el.style.height = pct(k[3], PH);
-    return el;
+    var el = $('k' + (i + 1)); el.style.left = pct(k[0], PW); el.style.top = pct(k[1], PH); el.style.width = pct(k[2], PW); el.style.height = pct(k[3], PH); return el;
   });
+  // 場館燈 6 盞
+  var LIGHTS = [[4, -18, -6], [22, -10, 4], [40, -4, 6], [58, -6, 4], [76, 4, 12], [94, 8, 18]];
+  $('lights').innerHTML = LIGHTS.map(function (l) { return '<div class="light" style="left:calc(' + l[0] + '% - 15%);--r0:' + l[1] + 'deg;--r1:' + l[2] + 'deg;transform:rotate(' + l[1] + 'deg)"></div>'; }).join('');
+  var lightEls = [].slice.call(document.querySelectorAll('.light'));
+  // 煙霧團
+  $('smoke').innerHTML = [[18, 40, 40], [50, 36, 52], [82, 42, 40], [34, 54, 34], [66, 56, 36]].map(function (s) {
+    return '<i style="left:' + (s[0] - s[2] / 2) + '%;top:' + (s[1] - s[2] / 4) + '%;width:' + s[2] + '%;height:' + (s[2] / 1.6) + '%"></i>'; }).join('');
 
-  /* ── 火花（canvas）：撞擊時往外噴、帶重力、拖尾；平常飄火星 ── */
-  var cv = document.getElementById('fx'), ctx = cv.getContext('2d'), P = [], DPR = Math.min(2, window.devicePixelRatio || 1);
+  /* ── 火花（canvas） ── */
+  var cv = $('fx'), ctx = cv.getContext('2d'), P = [], DPR = Math.min(2, window.devicePixelRatio || 1), embersOn = false;
   function size() { cv.width = stage.clientWidth * DPR; cv.height = stage.clientHeight * DPR; }
   window.addEventListener('resize', size); size();
   function burst(n, power, px, py) {
-    var x = (px == null ? HIT.x : px) / PW * cv.width, y = (py == null ? HIT.y : py) / PH * cv.height;
+    var x = (px == null ? 384 : px) / PW * cv.width, y = (py == null ? 612 : py) / PH * cv.height;
     for (var i = 0; i < n; i++) {
       var a = Math.random() * Math.PI * 2, sp = (2 + Math.random() * 11 * power) * DPR;
       P.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2 * DPR, life: 1, decay: .011 + Math.random() * .03,
@@ -198,14 +266,15 @@
   (function draw() {
     ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.globalCompositeOperation = 'lighter';
-    embers.forEach(function (m) {
-      m.y -= .0006 * m.s; m.t += .02; if (m.y < -0.05) { m.y = 1.02; m.x = Math.random(); }
-      ctx.fillStyle = 'rgba(255,' + (150 + (m.s * 80 | 0)) + ',80,' + (.18 + m.s * .3) + ')';
-      ctx.beginPath(); ctx.arc((m.x + Math.sin(m.t) * .01) * cv.width, m.y * cv.height, m.s * 2 * DPR, 0, 6.283); ctx.fill();
-    });
+    if (embersOn) {
+      embers.forEach(function (m) {
+        m.y -= .0006 * m.s; m.t += .02; if (m.y < -0.05) { m.y = 1.02; m.x = Math.random(); }
+        ctx.fillStyle = 'rgba(255,' + (150 + (m.s * 80 | 0)) + ',80,' + (.18 + m.s * .3) + ')';
+        ctx.beginPath(); ctx.arc((m.x + Math.sin(m.t) * .01) * cv.width, m.y * cv.height, m.s * 2 * DPR, 0, 6.283); ctx.fill();
+      });
+    }
     for (var i = P.length - 1; i >= 0; i--) {
-      var p = P[i];
-      p.x += p.vx; p.y += p.vy; p.vy += .2 * DPR; p.vx *= .985; p.life -= p.decay;
+      var p = P[i]; p.x += p.vx; p.y += p.vy; p.vy += .2 * DPR; p.vx *= .985; p.life -= p.decay;
       if (p.life <= 0) { P.splice(i, 1); continue; }
       ctx.strokeStyle = 'hsla(' + p.hue + ',100%,' + (58 + p.life * 35) + '%,' + p.life + ')';
       ctx.lineWidth = p.w; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 2.4, p.y - p.vy * 2.4); ctx.stroke();
@@ -214,9 +283,7 @@
     requestAnimationFrame(draw);
   })();
 
-  /* ── 音效（2026-10-09 使用者：「可以加上音效嗎？」）──
-     全部用 Web Audio 即時合成（不用音檔、正式機也能用）。瀏覽器規定要使用者點一下才能出聲 → 右上「🔇 音效」，點了開聲音並從頭重播。
-     倒數嗶聲／GO SHOOT! 拉發射器棘輪＋破風／標題重擊／陀螺高速旋轉嗡嗡聲／四大天王落地重擊／金屬撞擊＋觀眾歡呼／爆炸＋火花劈啪／觀眾席環境音。 */
+  /* ── 音效（2026-10-09 使用者：「可以加上音效嗎？」）：Web Audio 即時合成；瀏覽器規定要點一下才能出聲 → 右上「🔇 音效」 ── */
   var SND = (function () {
     var ac = null, master = null, nbuf = null, on = false, hum = null, amb = null;
     function init() {
@@ -259,6 +326,7 @@
         var t = now(); tone(t, 'sine', 95, 28, 1.6, 1); noise(t, 1.3, 'lowpass', 1600, 90, .8);
         for (var i = 0; i < 46; i++) { noise(t + .05 + Math.random() * 1.1, .012, 'highpass', 2500 + Math.random() * 4000, 0, .12 + Math.random() * .2); }
       },
+      clack: function () { var t = now(); noise(t, .05, 'highpass', 1800, 0, .5); tone(t, 'sine', 60, 40, .25, .5); },   // 場館燈「喀」一聲亮起
       cheer: function (big) {   // 觀眾歡呼湧上來
         if (!amb) { return; } var g = amb.g.gain, t = now();
         g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(big ? .22 : .14, t + .25); g.linearRampToValueAtTime(.035, t + (big ? 3 : 2));
@@ -288,90 +356,121 @@
     };
   })();
 
-  /* ── 喊招／閃光／震動 ── */
-  var callEl = document.getElementById('call'), flashEl = document.getElementById('flash');
+  /* ── 小工具：喊招／閃光／震動／重新觸發動畫 ── */
+  var callEl = $('call'), flashEl = $('flash');
+  function retrigger(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
   function call(txt, small) {
-    if (/^[0-9]$/.test(txt)) { SND.play('beep', false); }
-    else if (txt === 'GO SHOOT!' && !running) { SND.play('beep', true); SND.play('launch'); }
-    else { SND.play('whoosh'); }
-    callEl.querySelector('b').textContent = txt; callEl.className = 'call' + (small ? ' small' : '');
-    void callEl.offsetWidth; callEl.classList.add('on');
+    callEl.querySelector('b').textContent = txt; callEl.className = 'call' + (small ? ' small' : ''); void callEl.offsetWidth; callEl.classList.add('on');
   }
-  function flash(white) { flashEl.className = 'flash' + (white ? ' white' : ''); void flashEl.offsetWidth; flashEl.classList.add('on'); }
-  function shake() { if (reduce) { return; } stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }
+  function flash(kind) { flashEl.className = 'flash' + (kind === 'white' || kind === 'long' ? ' white' : '') + (kind === 'long' ? ' long' : ''); void flashEl.offsetWidth; flashEl.classList.add('on'); }
+  function shake(big) { if (reduce) { return; } stage.classList.remove('shake', 'big'); void stage.offsetWidth; stage.classList.add('shake'); if (big) { stage.classList.add('big'); } }
+  function camPush(scale, ms) { cam.style.transition = 'transform ' + ms + 'ms cubic-bezier(.3,0,.2,1)'; cam.style.transform = 'scale(' + scale + ')'; }
 
-  /* ── 對戰：發射後兩顆在原位旋轉，每 2.8 秒撞擊一次（火花＋白光＋震動＋原地脈衝） ── */
-  var running = false, start = 0, PERIOD = 2800, lastHit = -1, hits = 0;
-  var CALLS = ['BURST!', 'X-TREME!', 'CLASH!', 'GO SHOOT!'];
-  var VEV = [[2.65, 'clash'], [6.28, 'boom'], [9.15, 'clash']], lastVT = 0;   // battle.mp4 裡撞擊／爆炸的秒數（逐格分析亮度找出來的）
-  function loop(now) {
-    if (!running) { return; }
-    if (hasVideo && !vid.paused) {
+  /* ── 影片 ── */
+  var hasVideo = false, vidLast = 0, vidLive = false;
+  vid.addEventListener('loadeddata', function () { hasVideo = true; });
+  vid.addEventListener('error', function () { hasVideo = false; });
+  vid.src = 'battle.mp4';
+  setInterval(function () { if (vidLive && hasVideo && vid.paused && document.visibilityState === 'visible') { vid.play().catch(function () {}); } }, 1000);
+  // 影片裡撞擊／爆炸的時間點 → 音效＋震動（特寫時大、定格海報時小）
+  var closeup = false;
+  (function watch() {
+    if (vidLive && hasVideo && !vid.paused) {
       var vt = vid.currentTime;
       VEV.forEach(function (ev) {
-        if ((lastVT < ev[0] && vt >= ev[0]) || (vt < lastVT && vt >= ev[0] && ev[0] < .3)) {
-          if (ev[1] === 'boom') { SND.play('boom'); SND.play('cheer', true); } else { SND.play('metal', true); SND.play('cheer', false); }
+        if (vidLast < ev[0] && vt >= ev[0]) {
+          if (ev[1] === 'boom') { SND.play('boom'); SND.play('cheer', true); if (closeup) { onBoom(); } else { shake(false); } }
+          else { SND.play('metal', true); SND.play('cheer', false); shake(false); if (closeup) { flash('glow'); } }
         }
       });
-      lastVT = vt;
+      vidLast = vt;
     }
-    var t = (now - start) / PERIOD, cyc = Math.floor(t), f = t - cyc;
-    if (f >= .35 && lastHit !== cyc && !hasVideo) {
-      lastHit = cyc; hits++;
-      burst(reduce ? 30 : 150, 1); flash(false); shake(); SND.play('metal'); SND.play('cheer', false);
-      [tB, tR].forEach(function (el) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); });
-      if (hits % 3 === 0) { call(CALLS[(hits / 3 - 1) % CALLS.length], true); }
-    }
-    requestAnimationFrame(loop);
-  }
+    requestAnimationFrame(watch);
+  })();
 
-  /* ── AI 影片（battle.mp4）：載得到才切換；影片模式下陀螺撞擊的火花／閃光交給影片本身，不再另外疊 ── */
-  var vid = document.getElementById('vid'), hasVideo = false;
-  vid.addEventListener('loadeddata', function () { hasVideo = true; stage.classList.add('has-video'); if (stage.classList.contains('go')) { vid.play().catch(function () {}); } });   // 影片比開場晚載好也會接著播
-  vid.addEventListener('error', function () { hasVideo = false; stage.classList.remove('has-video'); });
-  vid.src = 'battle.mp4';
-  // 保險：瀏覽器有時會自己把背景影片停掉（省電、分頁切換）→ 每秒看一次，該播卻停住就接著播
-  setInterval(function () {
-    if (hasVideo && stage.classList.contains('go') && vid.paused && document.visibilityState === 'visible') { vid.play().catch(function () {}); }
-  }, 1000);
-
-  /* ── 開場：3・2・1・GO SHOOT! → 海報各圖層進場 → 開打 ── */
+  /* ── 分鏡時間軸 ── */
   var timers = [];
-  function play() {
-    timers.forEach(clearTimeout); timers = []; running = false;
-    stage.classList.remove('go'); vid.pause(); lastVT = 0; SND.hum(0); kings.forEach(function (k) { k.classList.remove('in'); }); void stage.offsetWidth;
-    document.getElementById('bgblur').classList.remove('on');
-    var seq = [['3', 0], ['2', 450], ['1', 900], ['GO SHOOT!', 1350]];
-    seq.forEach(function (s) { timers.push(setTimeout(function () { call(s[0], s[0].length > 2); if (s[0] === 'GO SHOOT!') { flash(true); } }, s[1])); });
-    timers.push(setTimeout(function () { stage.classList.add('go'); }, 0));
-    timers.push(setTimeout(function () { document.getElementById('bgblur').classList.add('on'); SND.play('slam'); SND.hum(.07); }, 1900));   // 標題重擊＋陀螺開始轉
-    timers.push(setTimeout(function () { if (hasVideo) { try { vid.currentTime = 0; } catch (e) {} vid.play().catch(function () {}); } }, 1900));   // 陀螺影片跟著海報一起出現、從頭播
-    timers.push(setTimeout(function () { if (!hasVideo) { burst(reduce ? 30 : 220, 1.3); flash(false); shake(); SND.play('metal', true); SND.play('cheer', false); } }, 2450));   // 落場第一擊（沒影片時）
-    // 四大天王依序登場（落定在 0.27 秒時：白光＋腳下火花＋震動）
-    timers.push(setTimeout(function () { call('四大天王', true); }, 2750));
-    KINGS.forEach(function (k, i) {
-      var at = 3500 + i * 520;
-      timers.push(setTimeout(function () { kings[i].classList.remove('in'); void kings[i].offsetWidth; kings[i].classList.add('in'); }, at));
-      timers.push(setTimeout(function () { SND.play('whoosh'); }, at));
-      timers.push(setTimeout(function () { burst(reduce ? 15 : 70, .8, k[0] + k[2] / 2, k[1] + k[3] * .97); shake(); SND.play('land'); }, at + 270));
-    });
-    timers.push(setTimeout(function () {
-      // 四個人都登場後：有 AI 影片就淡入從頭播（影片裡的人被上面的四大天王圖層蓋住），沒有就照原本的撞擊循環
-      running = true; start = performance.now(); lastHit = -1; hits = 0; requestAnimationFrame(loop);
-    }, 3500 + 4 * 520 + 400));
+  function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+  function reset() {
+    timers.forEach(clearTimeout); timers = [];
+    vidLive = false; closeup = false; vid.pause(); vidLast = 0; SND.hum(0); embersOn = false; P.length = 0;
+    cam.style.transition = 'none'; cam.style.transform = 'none';
+    ['base', 'dimtops', 'haze', 'glint', 'count', 'bgblur'].forEach(function (id) { $(id).classList.remove('on'); });
+    $('lights').classList.remove('dim'); lightEls.forEach(function (l) { l.classList.remove('on'); });
+    vband.classList.remove('on'); vband.classList.add('close');
+    ['topB', 'topR'].forEach(function (id) { $(id).classList.remove('on'); });
+    ['tA', 'tB', 'barL', 'barR'].forEach(function (id) { $(id).classList.remove('in'); });
+    kings.forEach(function (k) { k.classList.remove('in'); });
+    [1, 2, 3, 4].forEach(function (i) { $('kc' + i).classList.remove('show'); });
+    $('smoke').classList.remove('on'); $('bars').classList.remove('on');
   }
-  document.getElementById('replay').addEventListener('click', play);
-  var sndBtn = document.getElementById('sndBtn');
+  var booming = false;
+  function onBoom() {   // 特寫裡的大爆炸 → 全白閃＋大震 → 鏡頭拉遠回海報
+    if (booming) { return; } booming = true;
+    flash('long'); shake(true); burst(reduce ? 40 : 260, 1.6);
+    timers.push(setTimeout(pullBack, 250));
+  }
+  function pullBack() {
+    closeup = false; booming = false;
+    $('bars').classList.remove('on'); camPush(1, 1100);
+    $('base').classList.add('on'); $('dimtops').classList.add('on'); $('bgblur').classList.add('on');
+    $('lights').classList.add('dim'); $('haze').classList.remove('on');
+    vband.classList.remove('close');                         // 影片縮回海報中間
+    $('smoke').classList.remove('on'); void $('smoke').offsetWidth; $('smoke').classList.add('on');
+    embersOn = true;
+    var t = 700;
+    timers.push(setTimeout(function () { $('tA').classList.add('in'); SND.play('slam'); shake(false); }, t));                    // 戰鬥陀螺 重擊
+    timers.push(setTimeout(function () { $('tB').classList.add('in'); SND.play('whoosh'); }, t + 420));                        // 下兩行滑入
+    timers.push(setTimeout(function () { $('glint').classList.add('on'); }, t + 900));
+    // 四大天王特寫 1P～4P（每張 0.78 秒，退場時本人落進海報位置）
+    var k0 = t + 1300;
+    KINGS.forEach(function (k, i) {
+      var s = k0 + i * 760;
+      timers.push(setTimeout(function () { retrigger($('kc' + (i + 1)), 'show'); SND.play('whoosh'); SND.play('beep', true); }, s));
+      timers.push(setTimeout(function () { retrigger(kings[i], 'in'); }, s + 560));
+      timers.push(setTimeout(function () { burst(reduce ? 15 : 70, .8, k[0] + k[2] / 2, k[1] + k[3] * .97); shake(false); SND.play('land'); }, s + 720));
+    });
+    var b0 = k0 + 4 * 760 + 300;
+    timers.push(setTimeout(function () { $('barL').classList.add('in'); $('barR').classList.add('in'); SND.play('whoosh'); }, b0));   // 資訊條飛入
+    timers.push(setTimeout(function () { flash('glow'); SND.play('metal'); shake(false); }, b0 + 470));                            // 合體
+    timers.push(setTimeout(function () { $('count').classList.add('on'); }, b0 + 700));
+  }
+  function play() {
+    reset();
+    var lit = [0, 5, 1, 4, 2, 3];   // 場館燈：外側往內一盞盞亮
+    lit.forEach(function (li, i) { at(150 + i * 230, function () { lightEls[li].classList.add('on'); SND.play('clack'); }); });
+    at(900, function () { $('haze').classList.add('on'); });
+    at(1500, function () { $('bars').classList.add('on'); camPush(1.06, 1800); });
+    at(1600, function () { call('3'); SND.play('beep', false); });
+    at(2100, function () { call('2'); SND.play('beep', false); });
+    at(2600, function () { call('1'); SND.play('beep', false); });
+    at(3100, function () {
+      call('GO SHOOT!', true); flash('white'); SND.play('beep', true); SND.play('launch'); SND.hum(.07);
+      if (hasVideo) {
+        closeup = true; vband.classList.add('close'); vband.classList.add('on');
+        try { vid.currentTime = VOFF; } catch (e) {} vidLast = VOFF; vidLive = true; vid.play().catch(function () {});
+        camPush(1.0, 400);
+        // 保險：影片沒在 7 秒內觸發爆炸（例如被暫停）就自己接下去
+        at(6500, function () { if (closeup) { onBoom(); } });   // 影片爆炸預計在 GO 後 5.1 秒
+      } else {
+        $('topB').classList.add('on'); $('topR').classList.add('on'); $('base').classList.add('on');
+        at(1200, function () { burst(reduce ? 30 : 220, 1.3); flash('glow'); shake(false); SND.play('metal', true); SND.play('cheer', false); });
+        at(2500, function () { flash('long'); shake(true); SND.play('boom'); SND.play('cheer', true); pullBack(); });
+      }
+    });
+  }
+  $('replay').addEventListener('click', play);
+  var sndBtn = $('sndBtn');
   sndBtn.addEventListener('click', function () {
     if (SND.on()) { SND.disable(); sndBtn.textContent = '🔇 音效'; sndBtn.classList.remove('on'); return; }
     if (!SND.enable()) { sndBtn.textContent = '此瀏覽器不支援音效'; return; }
     sndBtn.textContent = '🔊 音效'; sndBtn.classList.add('on');
-    play();   // 開聲音就從頭重播，聽完整段
+    play();
   });
   play();
 
   /* ── 開賽倒數 ── */
-  var box = document.getElementById('count');
+  var box = $('count');
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function tick() {
     var ms = EVENT_AT - new Date();
@@ -381,9 +480,8 @@
   }
   tick(); setInterval(tick, 1000);
 
-  /* ── 看海報 ── */
-  var lb = document.getElementById('lb');
-  document.getElementById('posterBtn').addEventListener('click', function () { lb.classList.add('on'); });
+  var lb = $('lb');
+  $('posterBtn').addEventListener('click', function () { lb.classList.add('on'); });
   lb.addEventListener('click', function () { lb.classList.remove('on'); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { lb.classList.remove('on'); } });
 })();
